@@ -1,0 +1,6 @@
+{
+  "name": "Quiz Master",
+  "description": "Premium Quiz Game mobile app PRD and Technical Specification with Flutter, Firestore, and Unity Ads.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
