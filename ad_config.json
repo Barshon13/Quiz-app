@@ -1,0 +1,12 @@
+{
+  "enable_banner": true,
+  "enable_interstitial": true,
+  "enable_rewarded": true,
+  "interstitial_interval": 3,
+  "android_game_id": "5432100",
+  "ios_game_id": "5432101",
+  "banner_placement_id": "Banner_Android",
+  "interstitial_placement_id": "Interstitial_Android",
+  "rewarded_placement_id": "Rewarded_Android",
+  "is_test_mode": true
+}
