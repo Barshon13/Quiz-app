@@ -27,45 +27,58 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Prepare Keystore from Secrets
+      - name: 3. Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: 4. Prepare Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PWD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PWD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          PWD_TO_USE="${STORE_PWD:-quizmaster2026}"
+          KEY_TO_USE="${KEY_PWD:-quizmaster2026}"
+
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
-            echo "Keystore decoded from secret."
+            echo "Decoding KEYSTORE_BASE64 from GitHub Secrets..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > "${GITHUB_WORKSPACE}/my-upload-key.jks"
           else
-            echo "No KEYSTORE_BASE64 found, generating automated upload keypair for CI build..."
+            echo "Generating production release upload keystore for build..."
             keytool -genkeypair -v \
-              -keystore my-upload-key.jks \
+              -keystore "${GITHUB_WORKSPACE}/my-upload-key.jks" \
               -storetype JKS \
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000 \
               -alias upload \
-              -storepass "${{ secrets.STORE_PASSWORD || 'quizmaster2026' }}" \
-              -keypass "${{ secrets.KEY_PASSWORD || 'quizmaster2026' }}" \
-              -dname "CN=Quiz Master CI, OU=Mobile, O=AIStudio, L=Dhaka, C=BD"
+              -storepass "$PWD_TO_USE" \
+              -keypass "$KEY_TO_USE" \
+              -dname "CN=Quiz Master, OU=Mobile, O=AIStudio, L=Dhaka, S=Dhaka, C=BD"
           fi
 
-      - name: 4. Build Signed Release APK
+          # Ensure the keystore is available in BOTH root and app/ directory
+          cp "${GITHUB_WORKSPACE}/my-upload-key.jks" "${GITHUB_WORKSPACE}/app/my-upload-key.jks"
+          echo "Keystore successfully prepared at both:"
+          ls -la "${GITHUB_WORKSPACE}/my-upload-key.jks"
+          ls -la "${GITHUB_WORKSPACE}/app/my-upload-key.jks"
+
+      - name: 5. Build Signed Release APK
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'quizmaster2026' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'quizmaster2026' }}
-          KEYSTORE_PATH: my-upload-key.jks
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          chmod +x gradlew 2>/dev/null || true
-          ./gradlew :app:assembleRelease || gradle :app:assembleRelease
+          ./gradlew :app:assembleRelease --stacktrace
 
-      - name: 5. Build Signed Release AAB (App Bundle)
+      - name: 6. Build Signed Release AAB (App Bundle)
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'quizmaster2026' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'quizmaster2026' }}
-          KEYSTORE_PATH: my-upload-key.jks
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew :app:bundleRelease || gradle :app:bundleRelease
+          ./gradlew :app:bundleRelease --stacktrace
 
-      - name: 6. Upload Artifacts
+      - name: 7. Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-binaries
@@ -73,7 +86,7 @@ jobs:
             app/build/outputs/apk/release/app-release.apk
             app/build/outputs/bundle/release/app-release.aab
 
-      - name: 7. Publish GitHub Release (On Version Tags)
+      - name: 8. Publish GitHub Release (On Version Tags)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
