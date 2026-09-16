@@ -23,9 +23,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.data.ads.UnityAdsManager
+import com.example.data.ads.findActivity
 import com.example.ui.components.DailyRewardDialog
-import com.example.ui.components.SimulatedRewardedAdModal
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LeaderboardScreen
 import com.example.ui.screens.QuizScreen
@@ -42,6 +44,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Initialize Real Unity Ads SDK in Test Mode
+        UnityAdsManager.initialize(this)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
@@ -54,13 +58,55 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun QuizMasterApp(viewModel: QuizViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
-    val isShowingAd by viewModel.isShowingAd.collectAsState()
-    val adCountdown by viewModel.adCountdown.collectAsState()
-    val pendingReward by viewModel.pendingReward.collectAsState()
+    val adRequest by viewModel.adRequest.collectAsState()
+    val interstitialRequest by viewModel.interstitialRequest.collectAsState()
     val dailyRewardAmount by viewModel.dailyRewardAmount.collectAsState()
     val userMessage by viewModel.userMessage.collectAsState()
 
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Real Unity Rewarded Video Ad trigger
+    LaunchedEffect(adRequest) {
+        val req = adRequest
+        if (req != null) {
+            val activity = context.findActivity()
+            if (activity != null) {
+                UnityAdsManager.showRewardedAd(
+                    activity = activity,
+                    onRewardEarned = {
+                        viewModel.completeRewardedAd()
+                    },
+                    onDismissed = {
+                        viewModel.dismissAdWithoutReward()
+                    },
+                    onError = { err ->
+                        viewModel.handleAdError(err)
+                    }
+                )
+            } else {
+                viewModel.completeRewardedAd()
+            }
+            viewModel.clearAdRequest()
+        }
+    }
+
+    // Real Unity Interstitial Ad trigger
+    LaunchedEffect(interstitialRequest) {
+        if (interstitialRequest) {
+            val activity = context.findActivity()
+            if (activity != null) {
+                UnityAdsManager.showInterstitialAd(
+                    activity = activity,
+                    onAdClosed = {
+                        viewModel.clearInterstitialRequest()
+                    }
+                )
+            } else {
+                viewModel.clearInterstitialRequest()
+            }
+        }
+    }
 
     LaunchedEffect(userMessage) {
         userMessage?.let { msg ->
@@ -97,16 +143,6 @@ fun QuizMasterApp(viewModel: QuizViewModel) {
                     AppScreen.LEADERBOARD -> LeaderboardScreen(viewModel = viewModel)
                     AppScreen.STORE -> StoreScreen(viewModel = viewModel)
                 }
-            }
-
-            // Rewarded Video Ad Modal
-            if (isShowingAd) {
-                SimulatedRewardedAdModal(
-                    countdown = adCountdown,
-                    rewardType = pendingReward,
-                    onComplete = { viewModel.completeRewardedAd() },
-                    onDismiss = { viewModel.dismissAdWithoutReward() }
-                )
             }
 
             // Daily Login Reward Dialog

@@ -69,15 +69,21 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val _lastResult = MutableStateFlow<QuizResult?>(null)
     val lastResult: StateFlow<QuizResult?> = _lastResult.asStateFlow()
 
-    // Monetization / Rewarded Ad simulation state (Unity Ads representation)
+    // Monetization / Rewarded Ad state (Unity Ads Integration)
     private val _isShowingAd = MutableStateFlow(false)
     val isShowingAd: StateFlow<Boolean> = _isShowingAd.asStateFlow()
 
-    private val _adCountdown = MutableStateFlow(5)
+    private val _adCountdown = MutableStateFlow(0)
     val adCountdown: StateFlow<Int> = _adCountdown.asStateFlow()
 
     private val _pendingReward = MutableStateFlow<AdRewardType?>(null)
     val pendingReward: StateFlow<AdRewardType?> = _pendingReward.asStateFlow()
+
+    private val _adRequest = MutableStateFlow<AdRewardType?>(null)
+    val adRequest: StateFlow<AdRewardType?> = _adRequest.asStateFlow()
+
+    private val _interstitialRequest = MutableStateFlow(false)
+    val interstitialRequest: StateFlow<Boolean> = _interstitialRequest.asStateFlow()
 
     // Daily reward modal
     private val _dailyRewardAmount = MutableStateFlow<Int?>(null)
@@ -374,25 +380,35 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         _userMessage.value = null
     }
 
-    // Monetization (Simulated Unity Rewarded Ads with realistic feedback)
+    // Monetization (Real Unity Rewarded & Interstitial Ads)
     fun showRewardedAd(rewardType: AdRewardType) {
         _pendingReward.value = rewardType
-        _adCountdown.value = 5
-        _isShowingAd.value = true
+        _adRequest.value = rewardType
+    }
 
-        viewModelScope.launch {
-            for (i in 5 downTo 1) {
-                _adCountdown.value = i
-                delay(1000L)
-            }
-            _adCountdown.value = 0
-        }
+    fun showInterstitialAd() {
+        _interstitialRequest.value = true
+    }
+
+    fun clearAdRequest() {
+        _adRequest.value = null
+    }
+
+    fun clearInterstitialRequest() {
+        _interstitialRequest.value = false
+    }
+
+    fun handleAdError(error: String) {
+        _userMessage.value = "Unity Ads Status: $error"
+        // In test mode, if ad failed to load/show, grant reward so the tester is not blocked
+        completeRewardedAd()
     }
 
     fun completeRewardedAd() {
         val reward = _pendingReward.value
         _isShowingAd.value = false
         _pendingReward.value = null
+        _adRequest.value = null
 
         when (reward) {
             AdRewardType.REFILL_HEARTS -> {
@@ -414,7 +430,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             }
             AdRewardType.BONUS_COINS -> {
                 repository.addRewards(100, 20, 0, 0)
-                _userMessage.value = "Earned +100 Coins from sponsor!"
+                _userMessage.value = "Earned +100 Coins from Unity Test Ad!"
             }
             null -> {}
         }
@@ -423,6 +439,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissAdWithoutReward() {
         _isShowingAd.value = false
         _pendingReward.value = null
+        _adRequest.value = null
         _userMessage.value = "Video skipped early. No reward granted."
     }
 

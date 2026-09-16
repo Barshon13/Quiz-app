@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.ads.UnityAdsManager
 import com.example.data.model.LifelineType
 import com.example.ui.theme.CrimsonError
 import com.example.ui.theme.EmeraldSuccess
@@ -185,6 +186,11 @@ fun StoreScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(6.dp))
+                // Unity Ads Test Console for on-demand verification
+                UnityAdsTestConsoleCard(viewModel = viewModel)
+            }
+
+            item {
                 // Hearts Refill Card
                 HeartsRefillCard(
                     hearts = userProfile.hearts,
@@ -574,5 +580,144 @@ fun DayStreakPill(
             fontSize = 9.sp,
             color = if (isCurrentDay) GoldPrimary else TextMuted
         )
+    }
+}
+
+@Composable
+fun UnityAdsTestConsoleCard(
+    viewModel: QuizViewModel
+) {
+    val isInitialized by UnityAdsManager.isInitialized.collectAsState()
+    val isRewardedLoaded by UnityAdsManager.isRewardedLoaded.collectAsState()
+    val isInterstitialLoaded by UnityAdsManager.isInterstitialLoaded.collectAsState()
+    val statusMsg by UnityAdsManager.adStatusMessage.collectAsState()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.5.dp, GoldPrimary, RoundedCornerShape(16.dp))
+            .testTag("unity_ads_test_console"),
+        colors = CardDefaults.cardColors(containerColor = ObsidianCard)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (isInitialized) EmeraldSuccess else CrimsonError)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Unity Ads Test Console",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = TextPrimary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(GoldPrimary.copy(alpha = 0.2f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "TEST MODE ACTIVE",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GoldPrimary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Android Game ID: ${UnityAdsManager.config.androidGameId} • Status: $statusMsg",
+                fontSize = 11.sp,
+                color = TextSecondary,
+                lineHeight = 15.sp
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        viewModel.showRewardedAd(AdRewardType.BONUS_COINS)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("run_rewarded_test_ad_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Rewarded Ad",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.showInterstitialAd()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("run_interstitial_test_ad_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = ObsidianSurfaceElevated),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VideoLibrary,
+                        contentDescription = null,
+                        tint = GoldPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Interstitial Ad",
+                        color = GoldPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Tap either button above to trigger Unity Test Ads on this device",
+                    fontSize = 10.sp,
+                    color = TextMuted
+                )
+            }
+        }
     }
 }
