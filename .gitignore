@@ -20,3 +20,5 @@ debug.keystore
 app/build/
 build/
 .gradle/
+*.jks
+*.keystore
